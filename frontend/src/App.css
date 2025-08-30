@@ -1,0 +1,443 @@
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 30px;
+  font-size: 2.5em;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.marker-options {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.marker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.marker-option:hover {
+  background: white;
+  border-color: #667eea;
+  transform: scale(1.05);
+}
+
+.marker-option.active {
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  color: white;
+  border-color: #764ba2;
+}
+
+.color-picker {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.color-picker:hover {
+  transform: scale(1.1);
+}
+
+.map-container {
+  width: 100%;
+  height: 500px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 3px solid white;
+  transition: all 0.3s ease;
+}
+
+.map-container:hover {
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.status {
+  text-align: center;
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+.loading {
+  color: #667eea;
+  font-weight: bold;
+}
+
+.error {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.success {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.route-controls {
+  width: 100%;
+  max-width: 800px;
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.route-controls h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  text-align: center;
+  font-size: 1.2em;
+}
+
+.route-help {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.route-input-group {
+  margin-bottom: 15px;
+}
+
+.route-input-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #555;
+}
+
+.route-input {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+.route-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.waypoints-section {
+  margin: 15px 0;
+}
+
+.waypoint-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: move;
+}
+
+.waypoint-input-group:hover {
+  background-color: rgba(102, 126, 234, 0.05);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.waypoint-input-group.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  background-color: rgba(102, 126, 234, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 30px;
+  cursor: grab;
+  color: #999;
+  transition: color 0.2s ease;
+}
+
+.drag-handle:hover {
+  color: #667eea;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-icon {
+  font-weight: bold;
+  font-size: 16px;
+  line-height: 1;
+  user-select: none;
+}
+
+.waypoint-input-group .route-input {
+  flex: 1;
+}
+
+.waypoint-input-group.locked {
+  background-color: rgba(255, 215, 0, 0.1);
+  border-color: #FFD700;
+  cursor: default;
+}
+
+.waypoint-input-group.locked .drag-handle {
+  color: #FFD700;
+  cursor: not-allowed;
+}
+
+.waypoint-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+}
+
+.time-constraint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 14px;
+}
+
+.time-label {
+  font-size: 12px;
+  color: #666;
+  min-width: 60px;
+}
+
+.time-input {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 80px;
+}
+
+.constraint-info {
+  font-size: 12px;
+  color: #FFD700;
+  font-weight: bold;
+  background: rgba(255, 215, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.waypoint-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+
+.lock-btn {
+  padding: 6px 8px;
+  background: #f8f9fa;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lock-btn:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  transform: scale(1.05);
+}
+
+.lock-btn.locked {
+  background: linear-gradient(45deg, #FFD700, #FFA500);
+  border-color: #FFD700;
+  color: white;
+}
+
+.lock-btn.locked:hover {
+  background: linear-gradient(45deg, #FFA500, #FF8C00);
+}
+
+.remove-waypoint-btn {
+  padding: 8px 12px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.3s ease;
+}
+
+.remove-waypoint-btn:hover {
+  background: #c0392b;
+}
+
+.add-waypoint-btn {
+  padding: 8px 16px;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.add-waypoint-btn:hover {
+  background: #219a52;
+  transform: translateY(-1px);
+}
+
+.route-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.route-btn {
+  flex: 1;
+  max-width: 180px;
+}
+
+.optimize-btn {
+  background: linear-gradient(45deg, #FF6B6B, #4ECDC4) !important;
+}
+
+.optimize-btn:hover {
+  background: linear-gradient(45deg, #FF5252, #26C6DA) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  h1 {
+    font-size: 2em;
+  }
+  
+  .controls {
+    flex-direction: column;
+  }
+  
+  .marker-options {
+    justify-content: center;
+  }
+
+  .route-controls {
+    padding: 15px;
+  }
+
+  .waypoint-input-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .waypoint-input-group .route-input {
+    width: 100%;
+    min-width: 200px;
+  }
+
+  .drag-handle {
+    width: 15px;
+    height: 25px;
+  }
+
+  .drag-icon {
+    font-size: 14px;
+  }
+
+  .route-buttons {
+    flex-direction: column;
+  }
+
+  .route-btn {
+    max-width: none;
+  }
+}
