@@ -43,17 +43,19 @@ const Controls: React.FC<ControlsProps> = ({
     locked: boolean;
     timeConstraint?: string; // HH:MM 형식
     order?: number; // 잠긴 경우 고정 순서
+    travelMode?: 'DRIVING' | 'TRANSIT' | 'WALKING' | 'BICYCLING'; // 해당 구간의 교통수단
   }
 
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [waypoints, setWaypoints] = useState<WaypointData[]>([
-    { address: '', locked: false }
+    { address: '', locked: false, travelMode: 'DRIVING' }
   ]);
+  const [originTravelMode, setOriginTravelMode] = useState<'DRIVING' | 'TRANSIT' | 'WALKING' | 'BICYCLING'>('DRIVING');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const addWaypoint = () => {
-    setWaypoints([...waypoints, { address: '', locked: false }]);
+    setWaypoints([...waypoints, { address: '', locked: false, travelMode: 'DRIVING' }]);
   };
 
   const removeWaypoint = (index: number) => {
@@ -99,12 +101,27 @@ const Controls: React.FC<ControlsProps> = ({
     setWaypoints(newWaypoints);
   };
 
+  const updateWaypointTravelMode = (index: number, mode: 'DRIVING' | 'TRANSIT' | 'WALKING' | 'BICYCLING') => {
+    const newWaypoints = [...waypoints];
+    newWaypoints[index] = {
+      ...newWaypoints[index],
+      travelMode: mode
+    };
+    setWaypoints(newWaypoints);
+  };
+
   const handlePlanRoute = () => {
     if (origin && destination) {
       const validWaypoints = waypoints
         .filter(wp => wp.address.trim() !== '')
         .map(wp => wp.address);
-      onPlanRoute(origin, destination, validWaypoints);
+      
+      const travelModes = [originTravelMode, ...waypoints
+        .filter(wp => wp.address.trim() !== '')
+        .map(wp => wp.travelMode!)
+      ];
+      
+      (onPlanRoute as any)(origin, destination, validWaypoints, travelModes);
     }
   };
 
@@ -117,8 +134,10 @@ const Controls: React.FC<ControlsProps> = ({
         hasConstraints: validWaypoints.some(wp => wp.locked)
       };
       
+      const travelModes = [originTravelMode, ...validWaypoints.map(wp => wp.travelMode!)];
+      
       // onPlanOptimizedRoute에 추가 데이터 전달
-      (onPlanOptimizedRoute as any)(origin, destination, validWaypoints.map(wp => wp.address), waypointData);
+      (onPlanOptimizedRoute as any)(origin, destination, validWaypoints.map(wp => wp.address), waypointData, travelModes);
     }
   };
 
@@ -207,6 +226,19 @@ const Controls: React.FC<ControlsProps> = ({
             value={origin}
             onChange={(e) => setOrigin(e.target.value)}
           />
+          <div className="travel-mode-selector">
+            <label>교통수단:</label>
+            <select 
+              value={originTravelMode} 
+              onChange={(e) => setOriginTravelMode(e.target.value as any)}
+              className="travel-mode-select"
+            >
+              <option value="DRIVING">🚗 자동차</option>
+              <option value="TRANSIT">🚌 대중교통</option>
+              <option value="WALKING">🚶 도보</option>
+              <option value="BICYCLING">🚴 자전거</option>
+            </select>
+          </div>
         </div>
 
         <div className="waypoints-section">
@@ -234,6 +266,21 @@ const Controls: React.FC<ControlsProps> = ({
                   value={waypoint.address}
                   onChange={(e) => updateWaypoint(index, e.target.value)}
                 />
+                
+                <div className="travel-mode-selector">
+                  <label>교통수단:</label>
+                  <select 
+                    value={waypoint.travelMode || 'DRIVING'} 
+                    onChange={(e) => updateWaypointTravelMode(index, e.target.value as any)}
+                    className="travel-mode-select"
+                  >
+                    <option value="DRIVING">🚗 자동차</option>
+                    <option value="TRANSIT">🚌 대중교통</option>
+                    <option value="WALKING">🚶 도보</option>
+                    <option value="BICYCLING">🚴 자전거</option>
+                  </select>
+                  <span className="travel-mode-help">다음 구간으로</span>
+                </div>
                 
                 {waypoint.locked && (
                   <div className="time-constraint">

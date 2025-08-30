@@ -279,7 +279,7 @@ function App() {
   }, [userPosition]);
 
   // 기본 경로 계획 (순서대로 경유지 방문)
-  const planRoute = async (origin: string, destination: string, waypoints: string[]) => {
+  const planRoute = async (origin: string, destination: string, waypoints: string[], travelModes?: string[]) => {
     if (!map) {
       updateStatus('지도가 로드되지 않았습니다.', 'error');
       return;
@@ -313,7 +313,7 @@ function App() {
       console.log('기본 경로 구간:', segments);
 
       // 각 구간별로 실제 경로 계산 및 렌더링
-      await renderBasicRoute(segments);
+      await renderBasicRoute(segments, travelModes);
 
     } catch (error) {
       console.error('Route planning error:', error);
@@ -325,7 +325,7 @@ function App() {
   };
 
   // 최적화된 경로 계획 (Nearest Neighbor 알고리즘 사용)
-  const planOptimizedRoute = async (origin: string, destination: string, waypoints: string[], waypointData?: any) => {
+  const planOptimizedRoute = async (origin: string, destination: string, waypoints: string[], waypointData?: any, travelModes?: string[]) => {
     if (!map) {
       updateStatus('지도가 로드되지 않았습니다.', 'error');
       return;
@@ -403,7 +403,7 @@ function App() {
       console.log('최적화된 경로 구간:', segments);
 
       // 4단계: 각 구간별로 실제 경로 계산 및 렌더링
-      await renderOptimizedRoute(segments, true);
+      await renderOptimizedRoute(segments, true, travelModes);
 
     } catch (error) {
       console.error('Route optimization error:', error);
@@ -420,7 +420,8 @@ function App() {
     const travelModes = [
       google.maps.TravelMode.DRIVING,
       google.maps.TravelMode.TRANSIT,
-      google.maps.TravelMode.WALKING
+      google.maps.TravelMode.WALKING,
+      google.maps.TravelMode.BICYCLING
     ];
 
     for (const travelMode of travelModes) {
@@ -477,59 +478,50 @@ function App() {
   };
 
   // 기본 경로 렌더링 (입력 순서대로)
-  const renderBasicRoute = async (segments: {origin: string, destination: string}[]) => {
+  const renderBasicRoute = async (segments: {origin: string, destination: string}[], segmentTravelModes?: string[]) => {
     const directionsService = new google.maps.DirectionsService();
-    const travelModes = [
-      google.maps.TravelMode.DRIVING,
-      google.maps.TravelMode.TRANSIT,
-      google.maps.TravelMode.WALKING
-    ];
 
     let allResults = [];
-    let usedTravelMode = '';
     let totalDistance = 0;
     let totalDuration = 0;
+    let segmentModes = [];
 
-    for (const travelMode of travelModes) {
-      try {
-        allResults = [];
-        totalDistance = 0;
-        totalDuration = 0;
+    try {
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const travelModeStr = segmentTravelModes?.[i] || 'DRIVING';
+        const travelMode = (google.maps.TravelMode as any)[travelModeStr] || google.maps.TravelMode.DRIVING;
+        
+        const request: google.maps.DirectionsRequest = {
+          origin: segment.origin,
+          destination: segment.destination,
+          waypoints: [],
+          travelMode: travelMode,
+          region: 'KR',
+          language: 'ko'
+        };
 
-        for (const segment of segments) {
-          const request: google.maps.DirectionsRequest = {
-            origin: segment.origin,
-            destination: segment.destination,
-            waypoints: [],
-            travelMode: travelMode,
-            region: 'KR',
-            language: 'ko'
-          };
-
-          const result = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
-            directionsService.route(request, (result, status) => {
-              console.log(`${segment.origin} -> ${segment.destination} (${travelMode}):`, status);
-              if (status === 'OK' && result) {
-                resolve(result);
-              } else {
-                reject(new Error(`${travelMode}: ${status}`));
-              }
-            });
+        const result = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
+          directionsService.route(request, (result, status) => {
+            console.log(`${segment.origin} -> ${segment.destination} (${travelModeStr}):`, status);
+            if (status === 'OK' && result) {
+              resolve(result);
+            } else {
+              reject(new Error(`${travelModeStr}: ${status}`));
+            }
           });
+        });
 
-          allResults.push(result);
-          
-          const leg = result.routes[0].legs[0];
-          totalDistance += leg.distance?.value || 0;
-          totalDuration += leg.duration?.value || 0;
-        }
-
-        usedTravelMode = travelMode;
-        break;
-      } catch (err) {
-        console.log(`${travelMode} 실패:`, err);
-        continue;
+        allResults.push(result);
+        segmentModes.push(travelMode);
+        
+        const leg = result.routes[0].legs[0];
+        totalDistance += leg.distance?.value || 0;
+        totalDuration += leg.duration?.value || 0;
       }
+    } catch (err) {
+      console.log('경로 계산 실패:', err);
+      throw err;
     }
 
     if (allResults.length === 0) {
@@ -537,14 +529,17 @@ function App() {
     }
 
     const newRenderers = [];
-    const baseColor = usedTravelMode === google.maps.TravelMode.DRIVING ? '#4285F4' : 
-                      usedTravelMode === google.maps.TravelMode.TRANSIT ? '#34A853' : '#EA4335';
 
     for (let i = 0; i < allResults.length; i++) {
       const result = allResults[i];
+      const travelMode = segmentModes[i];
+      
+      const baseColor = travelMode === google.maps.TravelMode.DRIVING ? '#4285F4' : 
+                        travelMode === google.maps.TravelMode.TRANSIT ? '#34A853' : 
+                        travelMode === google.maps.TravelMode.BICYCLING ? '#FF9800' : '#EA4335';
       
       const renderer = new google.maps.DirectionsRenderer({
-        draggable: usedTravelMode === google.maps.TravelMode.DRIVING,
+        draggable: travelMode === google.maps.TravelMode.DRIVING,
         polylineOptions: {
           strokeColor: baseColor,
           strokeWeight: 6,
@@ -567,71 +562,63 @@ function App() {
     const distanceText = totalDistance > 0 ? `${(totalDistance / 1000).toFixed(1)}km` : '알 수 없음';
     const durationText = totalDuration > 0 ? `${Math.round(totalDuration / 60)}분` : '알 수 없음';
     
-    const modeText = usedTravelMode === google.maps.TravelMode.DRIVING ? '🚗 자동차' :
-                     usedTravelMode === google.maps.TravelMode.TRANSIT ? '🚌 대중교통' : '🚶 도보';
+    const modeTexts = segmentModes.map(mode => {
+      return mode === google.maps.TravelMode.DRIVING ? '🚗' :
+             mode === google.maps.TravelMode.TRANSIT ? '🚌' : 
+             mode === google.maps.TravelMode.BICYCLING ? '🚴' : '🚶';
+    }).join(' → ');
 
     updateStatus(
-      `경로 계획 완료! ${modeText} (${segments.length}개 구간) - 총 거리: ${distanceText}, 총 시간: ${durationText}`,
+      `경로 계획 완료! ${modeTexts} (${segments.length}개 구간) - 총 거리: ${distanceText}, 총 시간: ${durationText}`,
       'success'
     );
   };
 
   // 최적화된 경로 렌더링
-  const renderOptimizedRoute = async (segments: {origin: string, destination: string}[], isOptimized: boolean = false) => {
+  const renderOptimizedRoute = async (segments: {origin: string, destination: string}[], isOptimized: boolean = false, segmentTravelModes?: string[]) => {
     const directionsService = new google.maps.DirectionsService();
-    const travelModes = [
-      google.maps.TravelMode.DRIVING,
-      google.maps.TravelMode.TRANSIT,
-      google.maps.TravelMode.WALKING
-    ];
 
     let allResults = [];
-    let usedTravelMode = '';
     let totalDistance = 0;
     let totalDuration = 0;
+    let segmentModes = [];
 
-    // 각 교통수단으로 시도
-    for (const travelMode of travelModes) {
-      try {
-        allResults = [];
-        totalDistance = 0;
-        totalDuration = 0;
+    try {
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const travelModeStr = segmentTravelModes?.[i] || 'DRIVING';
+        const travelMode = (google.maps.TravelMode as any)[travelModeStr] || google.maps.TravelMode.DRIVING;
+        
+        const request: google.maps.DirectionsRequest = {
+          origin: segment.origin,
+          destination: segment.destination,
+          waypoints: [],
+          travelMode: travelMode,
+          region: 'KR',
+          language: 'ko'
+        };
 
-        // 각 구간별로 경로 요청
-        for (const segment of segments) {
-          const request: google.maps.DirectionsRequest = {
-            origin: segment.origin,
-            destination: segment.destination,
-            waypoints: [],
-            travelMode: travelMode,
-            region: 'KR',
-            language: 'ko'
-          };
-
-          const result = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
-            directionsService.route(request, (result, status) => {
-              console.log(`${segment.origin} -> ${segment.destination} (${travelMode}):`, status);
-              if (status === 'OK' && result) {
-                resolve(result);
-              } else {
-                reject(new Error(`${travelMode}: ${status}`));
-              }
-            });
+        const result = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
+          directionsService.route(request, (result, status) => {
+            console.log(`${segment.origin} -> ${segment.destination} (${travelModeStr}):`, status);
+            if (status === 'OK' && result) {
+              resolve(result);
+            } else {
+              reject(new Error(`${travelModeStr}: ${status}`));
+            }
           });
+        });
 
-          allResults.push(result);
-          
-          const leg = result.routes[0].legs[0];
-          totalDistance += leg.distance?.value || 0;
-          totalDuration += leg.duration?.value || 0;
-        }
-
-        usedTravelMode = travelMode;
-        break;
-      } catch (err) {
-        console.log(`${travelMode} 실패:`, err);
-        continue;
+        allResults.push(result);
+        segmentModes.push(travelMode);
+        
+        const leg = result.routes[0].legs[0];
+        totalDistance += leg.distance?.value || 0;
+        totalDuration += leg.duration?.value || 0;
       }
+    } catch (err) {
+      console.log('최적화된 경로 계산 실패:', err);
+      throw err;
     }
 
     if (allResults.length === 0) {
@@ -640,14 +627,17 @@ function App() {
 
     // 각 구간별로 렌더러 생성
     const newRenderers = [];
-    const baseColor = usedTravelMode === google.maps.TravelMode.DRIVING ? '#4285F4' : 
-                      usedTravelMode === google.maps.TravelMode.TRANSIT ? '#34A853' : '#EA4335';
 
     for (let i = 0; i < allResults.length; i++) {
       const result = allResults[i];
+      const travelMode = segmentModes[i];
+      
+      const baseColor = travelMode === google.maps.TravelMode.DRIVING ? '#4285F4' : 
+                        travelMode === google.maps.TravelMode.TRANSIT ? '#34A853' : 
+                        travelMode === google.maps.TravelMode.BICYCLING ? '#FF9800' : '#EA4335';
       
       const renderer = new google.maps.DirectionsRenderer({
-        draggable: usedTravelMode === google.maps.TravelMode.DRIVING,
+        draggable: travelMode === google.maps.TravelMode.DRIVING,
         polylineOptions: {
           strokeColor: baseColor,
           strokeWeight: 6,
@@ -670,12 +660,15 @@ function App() {
     const distanceText = totalDistance > 0 ? `${(totalDistance / 1000).toFixed(1)}km` : '알 수 없음';
     const durationText = totalDuration > 0 ? `${Math.round(totalDuration / 60)}분` : '알 수 없음';
     
-    const modeText = usedTravelMode === google.maps.TravelMode.DRIVING ? '🚗 자동차' :
-                     usedTravelMode === google.maps.TravelMode.TRANSIT ? '🚌 대중교통' : '🚶 도보';
+    const modeTexts = segmentModes.map(mode => {
+      return mode === google.maps.TravelMode.DRIVING ? '🚗' :
+             mode === google.maps.TravelMode.TRANSIT ? '🚌' : 
+             mode === google.maps.TravelMode.BICYCLING ? '🚴' : '🚶';
+    }).join(' → ');
 
     const routeTypeText = isOptimized ? '최적화된 경로!' : '경로 계획 완료!';
     updateStatus(
-      `${routeTypeText} ${modeText} (${segments.length}개 구간) - 총 거리: ${distanceText}, 총 시간: ${durationText}`,
+      `${routeTypeText} ${modeTexts} (${segments.length}개 구간) - 총 거리: ${distanceText}, 총 시간: ${durationText}`,
       'success'
     );
   };
