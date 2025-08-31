@@ -892,7 +892,7 @@ function MainApp() {
   return (
     <div className="App">
       <div className="container">
-        <h1>🗺️ 커스텀 위치 마커</h1>
+        <h1>Google Map Test Page</h1>
         
         <Controls
           onGetCurrentLocation={getCurrentLocation}
@@ -926,10 +926,10 @@ function App() {
     <Router>
       <nav style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
         <Link to="/" style={{ marginRight: '20px', textDecoration: 'none', color: '#007bff' }}>
-          🗺️ Google Maps
+          Google Maps
         </Link>
         <Link to="/kakao-optimization" style={{ textDecoration: 'none', color: '#007bff' }}>
-          🎯 Kakao Maps
+          Kakao Maps
         </Link>
       </nav>
       

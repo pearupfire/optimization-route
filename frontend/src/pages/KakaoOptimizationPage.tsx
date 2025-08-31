@@ -562,7 +562,7 @@ const KakaoOptimizationPage: React.FC = () => {
 
   return (
     <div className="container">
-      <h1>🗺️ 카카오맵으로 경로 최적화</h1>
+      <h1>Kakao Map Test Page</h1>
       
       <KakaoControls
         onGetCurrentLocation={getCurrentLocation}
