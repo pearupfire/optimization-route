@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 import MapComponent from './components/MapComponent';
 import Controls from './components/Controls';
 import StatusMessage from './components/StatusMessage';
+import KakaoOptimizationPage from './pages/KakaoOptimizationPage';
 import { Location, MarkerType, MarkerData, TreasureData } from './types';
 import * as api from './services/api';
 
-function App() {
+function MainApp() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [currentMarker, setCurrentMarker] = useState<google.maps.Marker | null>(null);
   const [currentMarkerType, setCurrentMarkerType] = useState<MarkerType>('image');
@@ -916,6 +918,26 @@ function App() {
         <MapComponent onMapLoad={setMap} />
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <nav style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+        <Link to="/" style={{ marginRight: '20px', textDecoration: 'none', color: '#007bff' }}>
+          🗺️ Google Maps
+        </Link>
+        <Link to="/kakao-optimization" style={{ textDecoration: 'none', color: '#007bff' }}>
+          🎯 Kakao Maps
+        </Link>
+      </nav>
+      
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/kakao-optimization" element={<KakaoOptimizationPage />} />
+      </Routes>
+    </Router>
   );
 }
 

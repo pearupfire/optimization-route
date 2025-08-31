@@ -212,11 +212,6 @@ const Controls: React.FC<ControlsProps> = ({
       
       <div className="route-controls">
         <h3>🗺️ 경로 계획</h3>
-        <p className="route-help">
-          💡 정확한 주소나 잘 알려진 장소명을 입력해주세요.<br/>
-          예시: "서울역", "강남구청", "명동성당", "홍대입구역"
-        </p>
-        
         <div className="route-input-group">
           <label>출발지:</label>
           <input

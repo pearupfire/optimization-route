@@ -139,7 +139,7 @@ h1 {
 .route-controls {
   width: 100%;
   max-width: 800px;
-  margin: 20px 0;
+  margin: 20px auto;
   padding: 20px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: 15px;
