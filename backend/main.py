@@ -6,10 +6,6 @@ import math
 import random
 import httpx
 import os
-from dotenv import load_dotenv
-
-# .env 파일 로드
-load_dotenv()
 
 app = FastAPI()
 
@@ -41,11 +37,6 @@ class TreasureRequest(BaseModel):
     count: int = 5
     radius_km: float = 0.01  # 10m radius
 
-class NaverDirectionRequest(BaseModel):
-    start: str  # "경도,위도" 형태
-    goal: str   # "경도,위도" 형태
-    waypoints: Optional[str] = None  # "경도,위도|경도,위도" 형태 (최대 5개)
-    option: Optional[str] = 'traoptimal'  # trafast, tracomfort, traoptimal
 
 # 메모리 저장소 (실제 애플리케이션에서는 데이터베이스 사용)
 markers_db: List[Marker] = []
@@ -152,58 +143,6 @@ async def collect_treasure(treasure_id: int, user_location: Location):
             "distance_meters": distance_m
         }
 
-@app.post("/api/naver/directions")
-async def get_naver_directions(request: NaverDirectionRequest):
-    """네이버 Direction API를 호출하여 실제 경로 정보 반환"""
-    
-    # 네이버 클라이언트 ID와 시크릿 (환경변수에서 가져오기)
-    client_id = os.getenv('NAVER_CLIENT_ID')
-    client_secret = os.getenv('NAVER_CLIENT_SECRET')
-    
-    if not client_id or not client_secret:
-        raise HTTPException(status_code=500, detail="Naver API credentials not configured")
-    
-    # 네이버 Direction API URL
-    url = "https://maps.apigw.ntruss.com/map-direction/v1/driving"
-    
-    # API 요청 파라미터
-    params = {
-        'start': request.start,
-        'goal': request.goal,
-        'option': request.option
-    }
-    
-    if request.waypoints:
-        params['waypoints'] = request.waypoints
-    
-    # API 요청 헤더
-    headers = {
-        'x-ncp-apigw-api-key-id': client_id,
-        'x-ncp-apigw-api-key': client_secret if client_secret else client_id,
-    }
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=headers)
-            
-            if response.status_code == 200:
-                return response.json()
-            else:
-                # API 오류 처리
-                error_detail = f"Naver API Error: {response.status_code}"
-                try:
-                    error_data = response.json()
-                    if 'message' in error_data:
-                        error_detail += f" - {error_data['message']}"
-                except:
-                    error_detail += f" - {response.text}"
-                
-                raise HTTPException(status_code=response.status_code, detail=error_detail)
-                
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Network error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 def generate_random_location(center_lat: float, center_lng: float, radius_km: float) -> Location:
     """지정된 중심점에서 반경 내의 랜덤 위치 생성"""

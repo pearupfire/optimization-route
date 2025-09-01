@@ -4,8 +4,6 @@ import './App.css';
 import MapComponent from './components/MapComponent';
 import Controls from './components/Controls';
 import StatusMessage from './components/StatusMessage';
-import KakaoOptimizationPage from './pages/KakaoOptimizationPage';
-import NaverOptimizationPage from './pages/NaverOptimizationPage';
 import { Location, MarkerType, MarkerData, TreasureData } from './types';
 import * as api from './services/api';
 
@@ -925,22 +923,8 @@ function MainApp() {
 function App() {
   return (
     <Router>
-      <nav style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
-        <Link to="/" style={{ marginRight: '20px', textDecoration: 'none', color: '#007bff' }}>
-          Google Maps
-        </Link>
-        <Link to="/kakao-optimization" style={{ marginRight: '20px', textDecoration: 'none', color: '#007bff' }}>
-          Kakao Maps
-        </Link>
-        <Link to="/naver-optimization" style={{ textDecoration: 'none', color: '#007bff' }}>
-          Naver Maps
-        </Link>
-      </nav>
-      
       <Routes>
         <Route path="/" element={<MainApp />} />
-        <Route path="/kakao-optimization" element={<KakaoOptimizationPage />} />
-        <Route path="/naver-optimization" element={<NaverOptimizationPage />} />
       </Routes>
     </Router>
   );
