@@ -55,7 +55,7 @@ const NaverMapComponent: React.FC<NaverMapComponentProps> = ({ onMapLoad }) => {
       }
 
       const script = document.createElement('script');
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.REACT_APP_NAVER_MAP_CLIENT_ID}`;
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.REACT_APP_NAVER_CLIENT_ID}`;
       script.async = true;
       script.onload = initializeMap;
       script.onerror = () => {
