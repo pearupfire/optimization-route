@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import MapComponent from '../components/MapComponent';
 import Controls from '../components/Controls';
 import StatusMessage from '../components/StatusMessage';
+import FirebasePushNotification from '../components/FirebasePushNotification';
+import PWAInstaller from '../components/PWAInstaller';
 import { Location, MarkerType } from '../types';
 import * as api from '../services/api';
 
 function MapPage() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [currentMarker, setCurrentMarker] = useState<google.maps.Marker | null>(null);
-  const [currentMarkerType, setCurrentMarkerType] = useState<MarkerType>('image');
-  const [currentColor, setCurrentColor] = useState('#FF0000');
   const [treasures, setTreasures] = useState<{marker: google.maps.Marker, id: number}[]>([]);
   const [userPosition, setUserPosition] = useState<Location | null>(null);
+  const [prevPosition, setPrevPosition] = useState<Location | null>(null);
+  const [userHeading, setUserHeading] = useState<number>(0);
+  const [watchId, setWatchId] = useState<number | null>(null);
   const [directionsRenderers, setDirectionsRenderers] = useState<google.maps.DirectionsRenderer[]>([]);
   const [sequenceMarkers, setSequenceMarkers] = useState<google.maps.Marker[]>([]);
   const [status, setStatus] = useState({
@@ -19,36 +22,76 @@ function MapPage() {
     type: 'loading' as 'loading' | 'error' | 'success'
   });
 
-  const updateStatus = (message: string, type: 'loading' | 'error' | 'success') => {
-    setStatus({ message, type });
-  };
+  const updateStatus = React.useCallback((message: string, type: 'loading' | 'error' | 'success') => {
+    setStatus(prevStatus => {
+      // 동일한 상태면 업데이트 건너뛰기
+      if (prevStatus.message === message && prevStatus.type === type) {
+        return prevStatus;
+      }
+      return { message, type };
+    });
+  }, []);
 
   const getCurrentLocation = () => {
+    if (watchId !== null) {
+      // 위치 추적 중지
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
+      updateStatus('위치 추적이 중지되었습니다.', 'success');
+      return;
+    }
+    
     updateStatus('위치를 찾는 중...', 'loading');
     
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+      // 실시간 위치 추적 시작
+      const id = navigator.geolocation.watchPosition(
         (position) => {
           const userLocation: Location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           };
           
+          // 방향 정보 가져오기 (null일 경우 기본값 0)
+          const heading = position.coords.heading !== null ? position.coords.heading : 0;
+          
+          console.log('GPS 정보:', {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            heading: position.coords.heading,
+            speed: position.coords.speed,
+            accuracy: position.coords.accuracy
+          });
+          
+          // 움직임으로 방향 계산 (GPS heading이 없을 경우)
+          let calculatedHeading = heading;
+          if (position.coords.heading === null && prevPosition) {
+            calculatedHeading = calculateBearing(
+              prevPosition.lat, prevPosition.lng,
+              userLocation.lat, userLocation.lng
+            );
+            console.log('계산된 방향:', calculatedHeading);
+          }
+          
+          // 테스트용: 매번 다른 방향으로 설정 (실제 운용시 제거)
+          // calculatedHeading = Math.random() * 360;
+          
+          setPrevPosition(userLocation);
           setUserPosition(userLocation);
+          setUserHeading(calculatedHeading);
           
           if (map) {
-            map.setCenter(userLocation);
-            map.setZoom(16);
-            
-            if (currentMarker) {
-              currentMarker.setMap(null);
+            // 처음에만 중심 이동
+            if (!currentMarker) {
+              map.setCenter(userLocation);
+              map.setZoom(16);
             }
             
-            createCustomMarker(userLocation);
+            createCustomMarker(userLocation, calculatedHeading);
           }
           
           updateStatus(
-            `위치를 찾았습니다! (${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)})`,
+            `위치 추적 중... (${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)}) 방향: ${calculatedHeading.toFixed(0)}°`,
             'success'
           );
         },
@@ -72,28 +115,37 @@ function MapPage() {
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 0
+          maximumAge: 0  // 캐시 사용 안함, 항상 새 위치 요청
         }
       );
+      
+      setWatchId(id);
     } else {
       updateStatus('이 브라우저는 지리적 위치를 지원하지 않습니다.', 'error');
     }
   };
 
-  const createCustomMarker = (location: Location) => {
+  const createCustomMarker = (location: Location, heading: number = 0) => {
     if (!map) return;
+
+    // 기존 마커 완전히 제거
+    if (currentMarker) {
+      currentMarker.setMap(null);
+    }
+
+    console.log('마커 생성 - 방향:', heading);
 
     let markerOptions: google.maps.MarkerOptions = {
       position: location,
       map: map,
-      title: '내 위치',
-      animation: google.maps.Animation.DROP
+      title: `내 위치 (방향: ${heading.toFixed(0)}°)`
     };
 
     markerOptions.icon = {
       url: '/character.png',
       scaledSize: new google.maps.Size(40, 40),
-      anchor: new google.maps.Point(20, 40)
+      anchor: new google.maps.Point(20, 20),
+      rotation: heading  // Google Maps 자체 회전 기능 사용
     };
 
     const marker = new google.maps.Marker(markerOptions);
@@ -105,6 +157,7 @@ function MapPage() {
           <h3 style="margin: 0 0 10px 0; color: #333;">📍 내 위치</h3>
           <p style="margin: 0; color: #666;">위도: ${location.lat.toFixed(6)}</p>
           <p style="margin: 0; color: #666;">경도: ${location.lng.toFixed(6)}</p>
+          <p style="margin: 5px 0 0 0; color: #4285F4; font-weight: bold;">🧭 방향: ${heading.toFixed(0)}°</p>
         </div>
       `
     });
@@ -112,10 +165,6 @@ function MapPage() {
     marker.addListener('click', () => {
       infoWindow.open(map, marker);
     });
-
-    setTimeout(() => {
-      marker.setAnimation(null);
-    }, 1500);
   };
 
   const generateTreasures = async () => {
@@ -218,7 +267,7 @@ function MapPage() {
     }
   };
 
-  const collectTreasure = async (treasureId: number) => {
+  const collectTreasure = React.useCallback(async (treasureId: number) => {
     if (!userPosition) {
       updateStatus('현재 위치를 확인할 수 없습니다!', 'error');
       return;
@@ -265,11 +314,20 @@ function MapPage() {
         maximumAge: 0
       }
     );
-  };
+  }, [userPosition, updateStatus]);
 
   useEffect(() => {
     (window as any).collectTreasure = collectTreasure;
-  }, [userPosition]);
+  }, [collectTreasure]);
+
+  // 컴포넌트 언마운트 시 위치 추적 정리
+  useEffect(() => {
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [watchId]);
 
   const planRoute = async (origin: string, destination: string, waypoints: string[], travelModes?: string[]) => {
     if (!map) {
@@ -729,6 +787,18 @@ function MapPage() {
     return R * c;
   };
 
+  const calculateBearing = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    
+    const y = Math.sin(dLng) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+    
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360; // 0-360도로 정규화
+  };
+
   const getCoordinates = async (address: string): Promise<{lat: number, lng: number}> => {
     const geocoder = new google.maps.Geocoder();
     
@@ -851,22 +921,16 @@ function MapPage() {
           onGetCurrentLocation={getCurrentLocation}
           onGenerateTreasures={generateTreasures}
           onClearTreasures={clearTreasures}
-          currentMarkerType={currentMarkerType}
-          onSetMarkerType={setCurrentMarkerType}
-          currentColor={currentColor}
-          onUpdateMarkerColor={setCurrentColor}
-          onMarkerUpdate={(type, color) => {
-            if (currentMarker && userPosition) {
-              currentMarker.setMap(null);
-              createCustomMarker(userPosition);
-            }
-          }}
           onPlanRoute={planRoute}
           onPlanOptimizedRoute={planOptimizedRoute}
           onClearRoute={clearRoute}
         />
         
         <StatusMessage message={status.message} type={status.type} />
+        
+        <PWAInstaller onStatusUpdate={updateStatus} />
+        
+        <FirebasePushNotification onStatusUpdate={updateStatus} />
         
         <MapComponent onMapLoad={setMap} />
       </div>

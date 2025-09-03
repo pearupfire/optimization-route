@@ -6,17 +6,33 @@ import math
 import random
 import httpx
 import os
+import json
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 app = FastAPI()
 
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React 개발 서버 주소
+    allow_origins=["http://localhost:3000", "https://localhost:3000", "https://172.21.102.77:3000"],  # React 개발 서버 주소
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Firebase 초기화 (테스트용 - 실제로는 서비스 계정 키 파일 사용)
+# firebase_admin.initialize_app(credentials.Certificate("path/to/serviceAccountKey.json"))
+
+# 테스트용으로 기본 앱으로 초기화 (실제 프로덕션에서는 서비스 계정 키 필요)
+try:
+    if not firebase_admin._apps:
+        # 테스트용 기본 초기화 (실제로는 작동하지 않지만 구조만 보여줌)
+        firebase_admin.initialize_app()
+        print("Firebase Admin 초기화 완료")
+except Exception as e:
+    print(f"Firebase Admin 초기화 실패: {e}")
+    print("실제 사용을 위해서는 Firebase 서비스 계정 키가 필요합니다.")
 
 # 데이터 모델
 class Location(BaseModel):
@@ -37,10 +53,20 @@ class TreasureRequest(BaseModel):
     count: int = 5
     radius_km: float = 0.01  # 10m radius
 
+class FCMToken(BaseModel):
+    token: str
+
+class FCMMessage(BaseModel):
+    title: str
+    body: str
+    icon: Optional[str] = "/character.png"
+    data: Optional[Dict[str, str]] = None
+
 
 # 메모리 저장소 (실제 애플리케이션에서는 데이터베이스 사용)
 markers_db: List[Marker] = []
 treasures_db: List[Marker] = []
+fcm_tokens: List[str] = []  # FCM 토큰 저장소
 marker_id_counter = 1
 treasure_id_counter = 1
 
@@ -173,6 +199,97 @@ def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     
     return R * c
+
+# FCM 관련 엔드포인트들
+@app.post("/api/fcm/subscribe")
+async def subscribe_fcm(token_data: FCMToken):
+    """FCM 토큰 구독"""
+    global fcm_tokens
+    
+    if token_data.token not in fcm_tokens:
+        fcm_tokens.append(token_data.token)
+        print(f"새 FCM 토큰 등록: {token_data.token[:50]}...")
+    
+    return {
+        "message": "FCM 구독이 완료되었습니다!",
+        "total_subscribers": len(fcm_tokens)
+    }
+
+@app.post("/api/fcm/unsubscribe")
+async def unsubscribe_fcm(token_data: FCMToken):
+    """FCM 토큰 구독 해제"""
+    global fcm_tokens
+    
+    if token_data.token in fcm_tokens:
+        fcm_tokens.remove(token_data.token)
+        print(f"FCM 토큰 해제: {token_data.token[:50]}...")
+    
+    return {
+        "message": "FCM 구독이 해제되었습니다!",
+        "total_subscribers": len(fcm_tokens)
+    }
+
+@app.post("/api/fcm/send-test")
+async def send_test_fcm_notification(message: FCMMessage):
+    """테스트 FCM 알림 전송"""
+    if not fcm_tokens:
+        raise HTTPException(status_code=404, detail="구독된 FCM 토큰이 없습니다.")
+    
+    success_count = 0
+    failed_count = 0
+    
+    for token in fcm_tokens[:]:  # 복사본으로 반복
+        try:
+            # FCM 메시지 구성
+            fcm_message = messaging.Message(
+                notification=messaging.Notification(
+                    title=message.title,
+                    body=message.body,
+                    image=message.icon
+                ),
+                data=message.data or {},
+                token=token
+            )
+            
+            # FCM 메시지 전송 (실제로는 Firebase 프로젝트 설정 필요)
+            # response = messaging.send(fcm_message)
+            # print(f"FCM 메시지 전송 성공: {response}")
+            
+            # 테스트용으로 성공으로 간주
+            print(f"FCM 메시지 전송 시뮬레이션: {token[:50]}...")
+            success_count += 1
+            
+        except Exception as e:
+            print(f"FCM 메시지 전송 실패: {str(e)}")
+            failed_count += 1
+            
+            # 만료된 토큰 제거
+            if "registration-token-not-registered" in str(e) or "invalid" in str(e).lower():
+                fcm_tokens.remove(token)
+    
+    return {
+        "message": "FCM 테스트 알림 전송 완료",
+        "success": success_count,
+        "failed": failed_count,
+        "total_tokens": len(fcm_tokens),
+        "note": "실제 전송을 위해서는 Firebase 프로젝트 설정이 필요합니다."
+    }
+
+@app.get("/api/fcm/subscribers")
+async def get_fcm_subscribers():
+    """FCM 구독자 목록"""
+    return {
+        "total_subscribers": len(fcm_tokens),
+        "tokens": [token[:50] + "..." for token in fcm_tokens]
+    }
+
+@app.delete("/api/fcm/subscribers")
+async def clear_fcm_subscribers():
+    """모든 FCM 구독 삭제"""
+    global fcm_tokens
+    count = len(fcm_tokens)
+    fcm_tokens.clear()
+    return {"message": f"{count}개의 FCM 구독이 삭제되었습니다."}
 
 if __name__ == "__main__":
     import uvicorn

@@ -5,11 +5,6 @@ interface ControlsProps {
   onGetCurrentLocation: () => void;
   onGenerateTreasures: () => void;
   onClearTreasures: () => void;
-  currentMarkerType: MarkerType;
-  onSetMarkerType: (type: MarkerType) => void;
-  currentColor: string;
-  onUpdateMarkerColor: (color: string) => void;
-  onMarkerUpdate: (type: MarkerType, color: string) => void;
   onPlanRoute: (origin: string, destination: string, waypoints: string[]) => void;
   onPlanOptimizedRoute: (origin: string, destination: string, waypoints: string[]) => void;
   onClearRoute: () => void;
@@ -19,24 +14,10 @@ const Controls: React.FC<ControlsProps> = ({
   onGetCurrentLocation,
   onGenerateTreasures,
   onClearTreasures,
-  currentMarkerType,
-  onSetMarkerType,
-  currentColor,
-  onUpdateMarkerColor,
-  onMarkerUpdate,
   onPlanRoute,
   onPlanOptimizedRoute,
   onClearRoute
 }) => {
-  const handleMarkerTypeChange = (type: MarkerType) => {
-    onSetMarkerType(type);
-    onMarkerUpdate(type, currentColor);
-  };
-
-  const handleColorChange = (color: string) => {
-    onUpdateMarkerColor(color);
-    onMarkerUpdate(currentMarkerType, color);
-  };
 
   interface WaypointData {
     address: string;
@@ -201,14 +182,6 @@ const Controls: React.FC<ControlsProps> = ({
         🗑️ 보물 지우기
       </button>
       
-      <div className="marker-options">
-        <div 
-          className={`marker-option ${currentMarkerType === 'image' ? 'active' : ''}`}
-          onClick={() => handleMarkerTypeChange('image')}
-        >
-          🖼️ 이미지 마커
-        </div>
-      </div>
       
       <div className="route-controls">
         <h3>🗺️ 경로 계획</h3>
